@@ -1,0 +1,55 @@
+---
+title: 让嵌入式文章动起来：时序图、状态机与可交互演示
+date: 2026-06-29
+description: 用 WaveDrom 画 SPI 时序、Mermaid 画状态机、React 组件做可调参数演示。
+tags: [总线, 可视化, React]
+---
+
+import Mermaid from '../../components/Mermaid';
+import WaveDrom from '../../components/WaveDrom';
+import RcDemo from '../../components/RcDemo';
+
+纯文字描述时序总是隔靴搔痒。这篇演示三种「让文章动起来」的方式。
+
+## 1. 总线时序图（WaveDrom）
+
+下面是一段 SPI 传输的时序，用文本描述自动生成矢量图——比贴截图清晰、可改、可版本控制：
+
+<WaveDrom
+  client:only="react"
+  source={{
+    signal: [
+      { name: 'SCLK', wave: 'p.......' },
+      { name: 'CS',   wave: '10.....1' },
+      { name: 'MOSI', wave: 'x.====x.', data: ['b7', 'b6', 'b5', 'b4'] },
+      { name: 'MISO', wave: 'x.====x.', data: ['r7', 'r6', 'r5', 'r4'] },
+    ],
+  }}
+/>
+
+WaveDrom 还能画**寄存器位域图**，写驱动文档时极有用。
+
+## 2. 状态机（Mermaid）
+
+一个典型的传输状态机，用几行文本描述：
+
+<Mermaid
+  client:only="react"
+  code={`stateDiagram-v2
+    [*] --> Idle
+    Idle --> Start: cs_low
+    Start --> Transfer: clk_edge
+    Transfer --> Transfer: byte_done
+    Transfer --> Done: cs_high
+    Done --> [*]`}
+/>
+
+## 3. 可交互演示（React island）
+
+这是截图永远做不到的——拖动滑块，实时看 RC 低通的截止频率和幅频响应变化：
+
+<RcDemo client:visible />
+
+---
+
+三者都只在用到的页面加载 JS，其余部分仍是零 JS 的静态 HTML——性能和 SEO 不受影响。

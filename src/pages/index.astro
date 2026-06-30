@@ -1,0 +1,39 @@
+---
+import BlogLayout from '../layouts/BlogLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+---
+
+<BlogLayout title="嵌入式笔记 · 博客">
+  <h1>嵌入式笔记</h1>
+  <p class="post-excerpt">
+    一个嵌入式工程师的技术博客 —— 记录开发中的踩坑、原理推导与实践。
+    成体系的教程在 <a href="/docs/intro">文档区</a>。
+  </p>
+
+  <ul class="post-list">
+    {
+      posts.map((p) => (
+        <li>
+          <h2>
+            <a href={`/blog/${p.id}`}>{p.data.title}</a>
+          </h2>
+          <div class="post-meta">{fmt(p.data.date)}</div>
+          {p.data.description && <p class="post-excerpt">{p.data.description}</p>}
+          <div>
+            {p.data.tags.map((t) => (
+              <a class="tag" href={`/tags/${t}`}>
+                #{t}
+              </a>
+            ))}
+          </div>
+        </li>
+      ))
+    }
+  </ul>
+</BlogLayout>

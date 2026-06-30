@@ -1,0 +1,11 @@
+/* 文档区（Starlight）品牌色微调，与博客区呼应但保持文档气质 */
+:root {
+  --sl-color-accent-low: #3a1f12;
+  --sl-color-accent: #b4541e;
+  --sl-color-accent-high: #f0c9af;
+}
+:root[data-theme='light'] {
+  --sl-color-accent-low: #f3e6dc;
+  --sl-color-accent: #b4541e;
+  --sl-color-accent-high: #6e3211;
+}

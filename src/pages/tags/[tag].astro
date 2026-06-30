@@ -1,0 +1,40 @@
+---
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import { getCollection } from 'astro:content';
+
+export async function getStaticPaths() {
+  const posts = await getCollection('blog', ({ data }) => !data.draft);
+  const tags = [...new Set(posts.flatMap((p) => p.data.tags))];
+  return tags.map((tag) => ({
+    params: { tag },
+    props: {
+      tag,
+      posts: posts
+        .filter((p) => p.data.tags.includes(tag))
+        .sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf()),
+    },
+  }));
+}
+
+const { posts, tag } = Astro.props;
+const fmt = (d: Date) => d.toISOString().slice(0, 10);
+---
+
+<BlogLayout title={`标签：${tag}`}>
+  <h1>#{tag}</h1>
+  <p class="post-excerpt">
+    共 {posts.length} 篇 · <a href="/tags">查看全部标签</a>
+  </p>
+  <ul class="post-list">
+    {
+      posts.map((p) => (
+        <li>
+          <h2>
+            <a href={`/blog/${p.id}`}>{p.data.title}</a>
+          </h2>
+          <div class="post-meta">{fmt(p.data.date)}</div>
+        </li>
+      ))
+    }
+  </ul>
+</BlogLayout>

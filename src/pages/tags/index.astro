@@ -1,0 +1,24 @@
+---
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import { getCollection } from 'astro:content';
+
+const posts = await getCollection('blog', ({ data }) => !data.draft);
+const counts: Record<string, number> = {};
+for (const p of posts) for (const t of p.data.tags) counts[t] = (counts[t] ?? 0) + 1;
+const tags = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+---
+
+<BlogLayout title="标签 · 嵌入式笔记">
+  <h1>标签</h1>
+  <p class="post-excerpt">按主题浏览文章。</p>
+  <div style="margin-top:1.5rem">
+    {
+      tags.map(([t, c]) => (
+        <a class="tag" href={`/tags/${t}`}>
+          #{t} ({c})
+        </a>
+      ))
+    }
+    {tags.length === 0 && <p class="post-meta">还没有标签。</p>}
+  </div>
+</BlogLayout>
