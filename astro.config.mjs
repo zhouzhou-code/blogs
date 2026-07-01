@@ -15,7 +15,7 @@ export default defineConfig({
   integrations: [
     // ── 文档区：Starlight 掌管 /docs/**（左侧目录树 + 内置搜索，OpenAMP 同款气质）
     starlight({
-      title: '嵌入式笔记',
+      title: 'zz的blogs~',
       defaultLocale: 'root',
       locales: {
         root: { label: '简体中文', lang: 'zh-CN' },

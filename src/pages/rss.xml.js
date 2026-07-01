@@ -6,7 +6,7 @@ export async function GET(context) {
     (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
   );
   return rss({
-    title: '嵌入式笔记',
+    title: 'zz的blogs~',
     description: '一个嵌入式工程师的技术博客',
     site: context.site,
     items: posts.map((p) => ({
