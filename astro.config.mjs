@@ -7,11 +7,14 @@ import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 
+import cloudflare from '@astrojs/cloudflare';
+
 // 站点地址：现在用免费的 pages.dev 占位，绑定独立域名后改这里即可。
 const SITE = 'https://blog.pages.dev';
 
 export default defineConfig({
   site: SITE,
+
   integrations: [
     // ── 文档区：Starlight 掌管 /docs/**（左侧目录树 + 内置搜索，OpenAMP 同款气质）
     starlight({
@@ -39,9 +42,12 @@ export default defineConfig({
     mdx(),
     sitemap(),
   ],
+
   // 全站 Markdown 管线：数学公式（KaTeX）对博客区和文档区同时生效
   markdown: {
     remarkPlugins: [remarkMath],
     rehypePlugins: [rehypeKatex],
   },
+
+  adapter: cloudflare(),
 });
