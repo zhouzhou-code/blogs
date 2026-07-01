@@ -116,3 +116,45 @@ Git（发布流程）：
 2. Cloudflare Pages → 连接该仓库 → 构建命令 `npm run build`，输出目录 `dist`。
 3. 之后 `git push` 即自动部署上线。
 4. 绑定独立域名时，记得把 `astro.config.mjs` 里的 `site` 改成新域名。
+
+---
+
+## 换电脑 / 在新机器上继续
+
+这个项目**不依赖任何一台特定电脑**——源码全在 GitHub。换机器只需重建"运行环境"。
+
+### 通用 3 步（任何有网的电脑）
+
+```bash
+# 1. 装 Node ≥ 22（推荐 nvm；或去 nodejs.org 直接装）
+#    nvm 装法：
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+nvm install 22
+
+# 2. 克隆仓库
+git clone git@github.com:zhouzhou-code/blogs.git
+cd blogs
+
+# 3. 装依赖，跑起来
+npm install
+npm run dev        # → http://localhost:4321
+```
+
+就这样，博客就在新机器上跑起来了。
+
+### 关于 GitHub 授权（clone / push 要用）
+
+新机器要能拉取/推送，二选一：
+
+- **SSH（推荐）**：在新机器上生成密钥 `ssh-keygen -t ed25519`，把 `~/.ssh/id_ed25519.pub` 加到 https://github.com/settings/keys 。
+- **HTTPS**：clone 用 `https://github.com/zhouzhou-code/blogs.git`，push 时输入 GitHub 用户名 + Personal Access Token（在 https://github.com/settings/tokens 生成）。
+
+### 只有当新机器也是「WSL + Windows 代理」时才需要
+
+普通电脑（Mac / 原生 Linux / 直连网络的 Windows）**跳过这段**。若新机器同样是 WSL2 且靠 Windows 上的 Clash 上网，命令行默认连不上外网，需要：
+
+1. 把本机 `~/.bashrc` 末尾的 `# >>> wsl-clash-proxy >>>` 那段拷过去（自动读网关设代理，带 `proxon`/`proxoff` 开关）。
+2. 把 `~/.ssh/wsl-proxy-connect.sh` 和 `~/.ssh/config` 里的 `Host github.com` 块拷过去（让 SSH 走代理）。
+3. Clash 需开启「Allow LAN」。
+
+> 一句话：博客代码是干净、可移植的；代理那套只是**某台 WSL 机器的上网补丁**，跟着机器走、不跟着项目走。
