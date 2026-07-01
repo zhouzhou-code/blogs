@@ -123,10 +123,77 @@ blockquote {
 }
 a.tag:hover { color: var(--accent); border-color: var(--accent); text-decoration: none; }
 
+/* ── 文章页：左侧目录 + 正文 两栏，宽度取阅读甜点值 ── */
+main:has(.post-layout) { max-width: min(1280px, 92vw); }
+/* 文章页顶栏对齐到同宽，避免内容宽、导航窄的错位 */
+body:has(.post-layout) .site-header .inner { max-width: min(1280px, 92vw); }
+.post-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 3.5rem;
+  align-items: start;
+}
+.post-toc {
+  position: sticky;
+  top: 5rem;
+  font-size: 0.9rem;
+  max-height: calc(100vh - 6rem);
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+}
+.post-toc-title { font-weight: 600; color: var(--muted); margin-bottom: 0.6rem; }
+.post-toc ul { list-style: none; margin: 0; padding: 0; }
+.post-toc li { margin: 0.35rem 0; line-height: 1.4; }
+.post-toc li.toc-d3 { padding-left: 0.9rem; }
+.post-toc a { color: var(--muted); }
+.post-toc a:hover { color: var(--accent); text-decoration: none; }
+
+/* 窄屏：收起目录，正文回到单栏 */
+@media (max-width: 900px) {
+  main:has(.post-layout) { max-width: var(--max); }
+  .post-layout { grid-template-columns: 1fr; gap: 0; }
+  .post-toc { display: none; }
+}
+
 /* ── 文章正文排版 ── */
-.prose { font-size: 1.05rem; }
+.prose { font-size: 1.15rem; line-height: 1.85; }
+/* 段落文字限制在舒服的行宽（约 40 字），表格/代码块不受限、继续占满 */
+.prose > p,
+.prose > ul,
+.prose > ol,
+.prose > blockquote { max-width: 42em; }
 .prose h2 { margin-top: 2.2rem; padding-bottom: 0.3rem; border-bottom: 1px solid var(--border); }
+.prose h2, .prose h3 { scroll-margin-top: 5rem; }
 .prose img { display: block; margin: 1.4rem auto; }
+
+/* ── 表格 ── */
+.prose table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1.5rem 0;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  display: block;
+  overflow-x: auto;
+}
+.prose th,
+.prose td {
+  border: 1px solid var(--border);
+  padding: 0.55rem 0.8rem;
+  text-align: left;
+  vertical-align: top;
+}
+.prose thead th {
+  background: var(--accent-soft);
+  color: var(--fg);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.prose tbody tr:nth-child(even) {
+  background: color-mix(in srgb, var(--accent-soft) 40%, transparent);
+}
+.prose td:first-child { white-space: nowrap; font-weight: 500; }
 
 /* ── 页脚 ── */
 .site-footer {
