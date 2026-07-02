@@ -141,12 +141,23 @@ Git（发布流程）：
 
 ---
 
-## 部署（Cloudflare Pages）
+## 部署（Cloudflare Workers + GitHub Actions 自动部署）
 
-1. 在 GitHub 新建一个空仓库，把本项目推上去。
-2. Cloudflare Pages → 连接该仓库 → 构建命令 `npm run build`，输出目录 `dist`。
-3. 之后 `git push` 即自动部署上线。
-4. 绑定独立域名时，记得把 `astro.config.mjs` 里的 `site` 改成新域名。
+本项目是 **Cloudflare Workers** 站点（`wrangler.jsonc`），通过 **GitHub Actions**（`.github/workflows/deploy.yml`）实现 **push 到 `main` 自动构建并部署**。
+
+**一次性配置（在 GitHub 仓库加两个 secret）：**
+
+1. 建 Cloudflare API Token：Cloudflare 后台 → My Profile → API Tokens → Create Token → 用 **“Edit Cloudflare Workers”** 模板 → 生成后复制。
+2. 拿 Account ID：Cloudflare 后台任意页面右侧，或 Workers 概览页能看到。
+3. GitHub 仓库 → Settings → Secrets and variables → Actions → New repository secret，添加：
+   - `CLOUDFLARE_API_TOKEN` = 第 1 步的 token
+   - `CLOUDFLARE_ACCOUNT_ID` = 第 2 步的 Account ID
+
+配好后，每次 `git push` 到 `main`（含 `npm run publish:feishu`）都会自动部署。也可在 GitHub 的 **Actions** 页手动触发（workflow_dispatch）。
+
+**手动部署（本地，可选）：** `wrangler login` 后 `npm run deploy`。
+
+**独立域名：** 绑定后把 `astro.config.mjs` 里的 `site` 改成新域名。
 
 ---
 
