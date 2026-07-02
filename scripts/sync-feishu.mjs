@@ -31,6 +31,9 @@ if (pIdx !== -1) {
 const force = argv.includes('--force');
 const fIdx = argv.indexOf('--force');
 if (fIdx !== -1) argv.splice(fIdx, 1);
+const publish = argv.includes('--publish');
+const pubIdx = argv.indexOf('--publish');
+if (pubIdx !== -1) argv.splice(pubIdx, 1);
 const onlySlug = argv[0] || null;
 
 // ── 小工具 ──────────────────────────────────────────────
@@ -203,11 +206,37 @@ if (!posts.length) {
   console.error(onlySlug ? `manifest 里没有 slug=${onlySlug}` : 'manifest 为空');
   process.exit(1);
 }
+let ok = 0;
 for (const p of posts) {
   try {
     await syncOne(p);
+    ok += 1;
   } catch (e) {
     console.error(`  ✗ ${p.slug} 失败：${e.message}`);
   }
 }
-console.log('\n完成。');
+console.log('\n同步完成。');
+
+// --publish：同步后自动提交并推送
+if (publish && !previewDir) {
+  const git = (args) => execFileSync('git', args, { cwd: ROOT, stdio: 'inherit' });
+  try {
+    git(['add', 'src/content/blog', 'public/uploads']);
+    const changed =
+      execFileSync('git', ['status', '--porcelain', 'src/content/blog', 'public/uploads'], {
+        cwd: ROOT,
+        encoding: 'utf8',
+      }).trim();
+    if (!changed) {
+      console.log('无内容变化，跳过提交。');
+    } else {
+      const stamp = new Date().toISOString().slice(0, 16).replace('T', ' ');
+      git(['commit', '-m', `content: 从飞书同步 (${stamp})`]);
+      git(['push', 'origin', 'main']);
+      console.log('\n已提交并推送，Cloudflare 将自动部署。');
+    }
+  } catch (e) {
+    console.error(`\n发布步骤失败：${e.message}`);
+    process.exit(1);
+  }
+}

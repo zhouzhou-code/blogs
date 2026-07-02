@@ -68,6 +68,37 @@ Astro 会自动优化这些图片（压缩、转 WebP、加 hash 文件名、懒
 
 ---
 
+## 用飞书写、一键发布（推荐工作流）
+
+在**飞书文档**里写文章（所见即所得、表格图片随便插），同步管线把它拉下来转成博客文章并发布。**博客 = 飞书文档的 1:1 镜像**：想让博客长什么样，就在飞书里排成什么样。
+
+**三步：**
+
+1. 在飞书里写好文章。
+2. 把它登记到 `scripts/feishu-posts.json`（飞书 URL + slug + 标签 + 日期）：
+   ```json
+   [
+     { "url": "https://xxx.feishu.cn/wiki/xxxx", "slug": "my-post",
+       "date": "2026-07-03", "tags": ["RISC-V", "杂记"], "draft": false }
+   ]
+   ```
+3. 一条命令同步并发布：
+   ```bash
+   npm run publish:feishu            # 同步全部 + 自动 commit + push（触发部署）
+   npm run publish:feishu -- my-post # 只发某一篇
+   npm run sync:feishu               # 只同步、不提交（想先本地看看）
+   ```
+
+**管线自动做的事**：拉正文、把飞书**内嵌表格（sheet）转成 Markdown 表格**、下载图片改相对路径、归一标题层级、生成 frontmatter。
+
+**规则与注意**：
+
+- 归飞书管的文章**别在本地手改**，重跑会覆盖。
+- 已有手调 `.mdx` 的文章，脚本**默认跳过保护**，不会误伤；确要让飞书接管，先删掉那个 `.mdx` 再加 `--force`。
+- 首次同步别人的飞书文档若报权限，按提示 `lark-cli auth login --scope "..."` 授权即可。
+
+---
+
 ## 常用命令
 
 在本项目目录（`~/blog`）下执行：

@@ -10,7 +10,8 @@
     "astro": "astro",
     "generate-types": "wrangler types",
     "deploy": "npm run build && wrangler deploy",
-    "sync:feishu": "node scripts/sync-feishu.mjs"
+    "sync:feishu": "node scripts/sync-feishu.mjs",
+    "publish:feishu": "node scripts/sync-feishu.mjs --publish"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.0.2",
