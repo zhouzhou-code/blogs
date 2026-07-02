@@ -3,20 +3,24 @@ import 'katex/dist/katex.min.css';
 import '../styles/global.css';
 import { getCollection } from 'astro:content';
 
+interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
 interface Props {
   title: string;
   description?: string;
+  toc?: Heading[];
 }
-const { title, description } = Astro.props;
+const { title, description, toc = [] } = Astro.props;
 const desc = description ?? '一个嵌入式工程师的技术博客';
 
-// 左侧导航：所有文章，按日期倒序
 const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
   (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
 );
 const strip = (s: string) => s.replace(/\/+$/, '');
 const here = strip(Astro.url.pathname);
-const hasToc = Astro.slots.has('toc');
 ---
 
 <!doctype html>
@@ -31,50 +35,93 @@ const hasToc = Astro.slots.has('toc');
     <meta property="og:description" content={desc} />
     <meta property="og:type" content="website" />
     <link rel="alternate" type="application/rss+xml" title="zz的blogs~" href="/rss.xml" />
+    {import.meta.env.PROD && <link rel="stylesheet" href="/pagefind/pagefind-ui.css" />}
   </head>
   <body>
-    <header class="site-header">
-      <div class="site-header-inner">
-        <a href="/" class="brand">zz的blogs~</a>
-        <nav class="top-nav">
-          <a href="/" class:list={[{ active: here === '' || here === '/blog' }]}>博客</a>
-          <a href="/docs/intro">文档</a>
-          <a href="/tags">标签</a>
-          <a href="/rss.xml">RSS</a>
-        </nav>
-      </div>
-    </header>
+    <!-- 移动端顶栏 -->
+    <nav class="mobile-top">
+      <button id="menu-toggle" aria-label="菜单">☰</button>
+      <a href="/">zz的blogs~</a>
+    </nav>
 
-    <div class:list={['shell', { 'with-toc': hasToc }]}>
-      <aside class="side-nav">
-        <p class="side-nav-title">文章</p>
-        <ul>
+    <!-- 左侧深色导航 -->
+    <nav class="side" id="side">
+      <div class="side-head">
+        <a href="/" class="side-title">zz的blogs~</a>
+        <div class="side-sub">嵌入式技术博客</div>
+        <div id="rtd-search" class="side-search"></div>
+      </div>
+
+      <div class="side-scroll">
+        <p class="side-cap">文章</p>
+        <ul class="side-menu">
           {
-            posts.map((p) => (
-              <li>
-                <a
-                  href={`/blog/${p.id}`}
-                  class:list={[{ active: here === `/blog/${p.id}` }]}
-                >
-                  {p.data.title}
-                </a>
-              </li>
-            ))
+            posts.map((p) => {
+              const active = here === `/blog/${p.id}`;
+              return (
+                <li>
+                  <a href={`/blog/${p.id}`} class:list={[{ active }]}>
+                    {p.data.title}
+                  </a>
+                  {active && toc.length > 0 && (
+                    <ul class="side-sub-menu">
+                      {toc.map((h) => (
+                        <li class={`d${h.depth}`}>
+                          <a href={`#${h.slug}`}>{h.text}</a>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })
           }
         </ul>
-      </aside>
 
-      <main>
+        <p class="side-cap">站点</p>
+        <ul class="side-menu">
+          <li><a href="/" class:list={[{ active: here === '' }]}>首页</a></li>
+          <li><a href="/docs/intro">文档</a></li>
+          <li><a href="/tags" class:list={[{ active: here === '/tags' }]}>标签</a></li>
+          <li><a href="/rss.xml">RSS 订阅</a></li>
+        </ul>
+      </div>
+    </nav>
+
+    <!-- 右侧内容 -->
+    <section class="content-wrap">
+      <main class="content">
         <slot />
       </main>
+      <footer class="site-footer">
+        © {new Date().getFullYear()} zz的blogs~ · 由 Astro + Starlight 驱动
+      </footer>
+    </section>
 
-      <aside class="toc-col">
-        <slot name="toc" />
-      </aside>
-    </div>
+    <div class="side-overlay" id="side-overlay"></div>
 
-    <footer class="site-footer">
-      © {new Date().getFullYear()} zz的blogs~ · 由 Astro + Starlight 驱动
-    </footer>
+    <script is:inline>
+      // 移动端侧栏开合
+      const t = document.getElementById('menu-toggle');
+      const s = document.getElementById('side');
+      const o = document.getElementById('side-overlay');
+      const close = () => document.body.classList.remove('side-open');
+      t && t.addEventListener('click', () => document.body.classList.toggle('side-open'));
+      o && o.addEventListener('click', close);
+    </script>
+
+    {
+      import.meta.env.PROD && (
+        <>
+          <script src="/pagefind/pagefind-ui.js" is:inline />
+          <script is:inline>
+            window.addEventListener('DOMContentLoaded', () => {
+              if (window.PagefindUI)
+                new PagefindUI({ element: '#rtd-search', showImages: false, resetStyles: false, translations: { placeholder: '搜索…' } });
+            });
+          </script>
+        </>
+      )
+    }
   </body>
 </html>

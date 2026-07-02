@@ -16,7 +16,7 @@ const toc = headings.filter((h) => h.depth === 2 || h.depth === 3);
 const fmt = (d: Date) => d.toISOString().slice(0, 10);
 ---
 
-<BlogLayout title={post.data.title} description={post.data.description}>
+<BlogLayout title={post.data.title} description={post.data.description} toc={toc}>
   <article class="prose">
     <h1>{post.data.title}</h1>
     <div class="post-meta">
@@ -31,19 +31,4 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
     </div>
     <Content />
   </article>
-
-  {
-    toc.length > 0 && (
-      <nav slot="toc" class="toc">
-        <p class="toc-title">本页目录</p>
-        <ul>
-          {toc.map((h) => (
-            <li class={`toc-d${h.depth}`}>
-              <a href={`#${h.slug}`}>{h.text}</a>
-            </li>
-          ))}
-        </ul>
-      </nav>
-    )
-  }
 </BlogLayout>
