@@ -6,6 +6,7 @@ import mdx from '@astrojs/mdx';
 import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
+import remarkCjkFriendly from 'remark-cjk-friendly';
 
 import cloudflare from '@astrojs/cloudflare';
 
@@ -45,9 +46,11 @@ export default defineConfig({
 
   // 全站 Markdown 管线：数学公式（KaTeX）对博客区和文档区同时生效
   markdown: {
-    remarkPlugins: [remarkMath],
+    remarkPlugins: [remarkMath, remarkCjkFriendly],
     rehypePlugins: [rehypeKatex],
   },
 
-  adapter: cloudflare(),
+  // imageService: 'compile' —— 构建时用 sharp 优化成静态文件，
+  // 不依赖 Cloudflare 运行时图片服务（/_image 在本部署会 404）
+  adapter: cloudflare({ imageService: 'compile' }),
 });

@@ -12,10 +12,9 @@
 // 依赖 lark-cli（已登录 user 身份）。
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { get as httpsGet } from 'node:https';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = join(ROOT, 'scripts', 'feishu-posts.json');
@@ -46,23 +45,14 @@ function lark(args) {
   return JSON.parse(out);
 }
 
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    httpsGet(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        return download(res.headers.location, dest).then(resolve, reject);
-      }
-      if (res.statusCode !== 200) {
-        return reject(new Error(`HTTP ${res.statusCode} for ${url}`));
-      }
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
-      res.on('end', () => {
-        writeFileSync(dest, Buffer.concat(chunks));
-        resolve();
-      });
-    }).on('error', reject);
+// 用 curl 下载（走系统代理、跟随重定向，飞书带 authcode 的内部 URL 也能下）
+function curlDownload(url, dest) {
+  const ct = execFileSync('curl', ['-sL', '--fail', url, '-o', dest, '-w', '%{content_type}'], {
+    encoding: 'utf8',
+    maxBuffer: 128 * 1024 * 1024,
   });
+  if (!existsSync(dest) || statSync(dest).size === 0) throw new Error('空文件');
+  return ct;
 }
 
 function extFromCT(ct = '') {
@@ -158,39 +148,25 @@ async function syncOne(post) {
   }
   mkdirSync(dir, { recursive: true });
 
-  // 图片：<img ... url=".."/> 和 ![](http..) → 下载到本地、改相对路径
+  // 图片：<img ... url=".."/> 和 ![](http..) → 用 curl 下载到本地、改相对路径
   let imgN = 0;
-  const jobs = [];
-  const rewriteImg = (rawUrl) => {
+  const dlImage = (rawUrl) => {
     imgN += 1;
-    const name = `img-${String(imgN).padStart(2, '0')}`;
-    const rel = `./${name}`;
-    jobs.push(
-      (async () => {
-        // 先探测扩展名
-        let ext = 'png';
-        try {
-          ext = await new Promise((resolve, reject) => {
-            httpsGet(rawUrl, (r) => {
-              resolve(extFromCT(r.headers['content-type']));
-              r.destroy();
-            }).on('error', reject);
-          });
-        } catch {}
-        const file = `${name}.${ext}`;
-        await download(rawUrl, join(dir, file));
-        console.log(`  · 下载图片 ${file}`);
-        // 回填真实扩展名
-        replacements.push([rel, `./${file}`]);
-      })()
-    );
-    return rel;
+    const base = `img-${String(imgN).padStart(2, '0')}`;
+    const tmp = join(dir, base);
+    try {
+      const ct = curlDownload(rawUrl, tmp);
+      const file = `${base}.${extFromCT(ct)}`;
+      renameSync(tmp, join(dir, file));
+      console.log(`  · 下载图片 ${file}`);
+      return `./${file}`;
+    } catch (e) {
+      console.warn(`  ! 图片 ${base} 下载失败：${e.message}`);
+      return rawUrl; // 失败则保留原始 URL，不至于丢图
+    }
   };
-  const replacements = [];
-  md = md.replace(/<img[^>]*\burl="([^"]+)"[^>]*\/?>/g, (_, u) => `![](${rewriteImg(u)})`);
-  md = md.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (_, alt, u) => `![${alt}](${rewriteImg(u)})`);
-  await Promise.all(jobs);
-  for (const [from, to] of replacements) md = md.split(from + ')').join(to + ')');
+  md = md.replace(/<img[^>]*\burl="([^"]+)"[^>]*\/?>/g, (_, u) => `![](${dlImage(u)})`);
+  md = md.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (_, alt, u) => `![${alt}](${dlImage(u)})`);
 
   md = normalizeHeadings(md);
   // 清理飞书标题里多余的 **加粗**（标题本身已是强调）
