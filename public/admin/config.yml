@@ -1,0 +1,62 @@
+backend:
+  name: github
+  repo: zhouzhou-code/blogs
+  branch: main
+
+# 界面语言
+locale: zh_Hans
+
+# 全局图片落点（未在集合内单独指定时用）
+media_folder: public/uploads
+public_folder: /uploads
+
+collections:
+  # ── 博客 ──────────────────────────────────
+  - name: blog
+    label: 博客
+    label_singular: 文章
+    description: 时间流文章，发布后出现在首页
+    folder: src/content/blog
+    create: true
+    slug: "{{slug}}"
+    # 文件夹式文章：每篇一个文件夹，图片和正文同目录
+    path: "{{slug}}/index"
+    media_folder: ""
+    public_folder: ""
+    extension: md
+    format: frontmatter
+    sortable_fields: [date, title]
+    fields:
+      - { label: 标题, name: title, widget: string }
+      - {
+          label: 日期,
+          name: date,
+          widget: datetime,
+          date_format: "YYYY-MM-DD",
+          time_format: false,
+        }
+      - { label: 摘要, name: description, widget: string, required: false, hint: "一句话，用于列表和 SEO" }
+      - {
+          label: 标签,
+          name: tags,
+          widget: list,
+          required: false,
+          hint: "扁平标签，如 STM32、DSP",
+        }
+      - { label: 草稿, name: draft, widget: boolean, default: false, required: false }
+      - { label: 正文, name: body, widget: markdown }
+
+  # ── 文档（Starlight 知识库）───────────────
+  - name: docs
+    label: 文档
+    label_singular: 文档页
+    description: 成体系的知识库，显示在 /docs 左侧目录树
+    folder: src/content/docs/docs
+    create: true
+    slug: "{{slug}}"
+    extension: md
+    format: frontmatter
+    fields:
+      - { label: 标题, name: title, widget: string }
+      - { label: 描述, name: description, widget: string, required: false }
+      - { label: 正文, name: body, widget: markdown }
