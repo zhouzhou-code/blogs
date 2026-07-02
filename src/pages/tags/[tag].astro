@@ -22,7 +22,7 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 
 <BlogLayout title={`标签：${tag}`}>
   <h1>#{tag}</h1>
-  <p class="post-excerpt">
+  <p class="lead">
     共 {posts.length} 篇 · <a href="/tags">查看全部标签</a>
   </p>
   <ul class="post-list">

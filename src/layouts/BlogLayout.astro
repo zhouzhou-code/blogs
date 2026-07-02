@@ -1,6 +1,7 @@
 ---
 import 'katex/dist/katex.min.css';
 import '../styles/global.css';
+import { getCollection } from 'astro:content';
 
 interface Props {
   title: string;
@@ -8,6 +9,14 @@ interface Props {
 }
 const { title, description } = Astro.props;
 const desc = description ?? '一个嵌入式工程师的技术博客';
+
+// 左侧导航：所有文章，按日期倒序
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+  (a, b) => b.data.date.valueOf() - a.data.date.valueOf()
+);
+const strip = (s: string) => s.replace(/\/+$/, '');
+const here = strip(Astro.url.pathname);
+const hasToc = Astro.slots.has('toc');
 ---
 
 <!doctype html>
@@ -21,28 +30,49 @@ const desc = description ?? '一个嵌入式工程师的技术博客';
     <meta property="og:title" content={title} />
     <meta property="og:description" content={desc} />
     <meta property="og:type" content="website" />
-    <link
-      rel="alternate"
-      type="application/rss+xml"
-      title="zz的blogs~"
-      href="/rss.xml"
-    />
+    <link rel="alternate" type="application/rss+xml" title="zz的blogs~" href="/rss.xml" />
   </head>
   <body>
     <header class="site-header">
-      <div class="inner">
+      <div class="site-header-inner">
         <a href="/" class="brand">zz的blogs~</a>
-        <nav>
-          <a href="/">博客</a>
+        <nav class="top-nav">
+          <a href="/" class:list={[{ active: here === '' || here === '/blog' }]}>博客</a>
           <a href="/docs/intro">文档</a>
           <a href="/tags">标签</a>
           <a href="/rss.xml">RSS</a>
         </nav>
       </div>
     </header>
-    <main>
-      <slot />
-    </main>
+
+    <div class:list={['shell', { 'with-toc': hasToc }]}>
+      <aside class="side-nav">
+        <p class="side-nav-title">文章</p>
+        <ul>
+          {
+            posts.map((p) => (
+              <li>
+                <a
+                  href={`/blog/${p.id}`}
+                  class:list={[{ active: here === `/blog/${p.id}` }]}
+                >
+                  {p.data.title}
+                </a>
+              </li>
+            ))
+          }
+        </ul>
+      </aside>
+
+      <main>
+        <slot />
+      </main>
+
+      <aside class="toc-col">
+        <slot name="toc" />
+      </aside>
+    </div>
+
     <footer class="site-footer">
       © {new Date().getFullYear()} zz的blogs~ · 由 Astro + Starlight 驱动
     </footer>

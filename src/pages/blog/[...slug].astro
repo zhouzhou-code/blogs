@@ -17,30 +17,33 @@ const fmt = (d: Date) => d.toISOString().slice(0, 10);
 ---
 
 <BlogLayout title={post.data.title} description={post.data.description}>
-  <div class="post-layout">
-    {
-      toc.length > 0 && (
-        <aside class="post-toc">
-          <div class="post-toc-title">目录</div>
-          <nav>
-            <ul>
-              {toc.map((h) => (
-                <li class={`toc-d${h.depth}`}>
-                  <a href={`#${h.slug}`}>{h.text}</a>
-                </li>
-              ))}
-            </ul>
-          </nav>
-        </aside>
-      )
-    }
-    <article class="prose">
-      <h1>{post.data.title}</h1>
-      <div class="post-meta">{fmt(post.data.date)}</div>
-      <div style="margin:.5rem 0 1.5rem">
-        {post.data.tags.map((t) => <a class="tag" href={`/tags/${t}`}>#{t}</a>)}
-      </div>
-      <Content />
-    </article>
-  </div>
+  <article class="prose">
+    <h1>{post.data.title}</h1>
+    <div class="post-meta">
+      {fmt(post.data.date)}
+      {
+        post.data.tags.map((t) => (
+          <a class="tag" href={`/tags/${t}`}>
+            #{t}
+          </a>
+        ))
+      }
+    </div>
+    <Content />
+  </article>
+
+  {
+    toc.length > 0 && (
+      <nav slot="toc" class="toc">
+        <p class="toc-title">本页目录</p>
+        <ul>
+          {toc.map((h) => (
+            <li class={`toc-d${h.depth}`}>
+              <a href={`#${h.slug}`}>{h.text}</a>
+            </li>
+          ))}
+        </ul>
+      </nav>
+    )
+  }
 </BlogLayout>

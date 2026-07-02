@@ -192,7 +192,10 @@ async function syncOne(post) {
   await Promise.all(jobs);
   for (const [from, to] of replacements) md = md.split(from + ')').join(to + ')');
 
-  md = normalizeHeadings(md).trim();
+  md = normalizeHeadings(md);
+  // 清理飞书标题里多余的 **加粗**（标题本身已是强调）
+  md = md.replace(/^(#{1,6}\s+)\*\*(.+?)\*\*\s*$/gm, '$1$2');
+  md = md.trim();
 
   // frontmatter
   const esc = (s) => String(s).replace(/"/g, '\\"');
