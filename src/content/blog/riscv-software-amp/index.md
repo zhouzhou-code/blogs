@@ -1,13 +1,11 @@
 ---
-title: "项目动机"
-date: 2026-07-03
-tags: [RISC-V]
-# 来源：https://hcn1wljjwdm5.feishu.cn/wiki/EPZgw2yROiAqHOkzyGAcWTDjnig?from=from_copylink（由 scripts/sync-feishu.mjs 从飞书同步，勿手改，改飞书原文后重跑）
+title: "RISC-V软件分域AMP系统技术方案"
+date: 2026-07-02
+tags: [RISC-V, AMP, OpenSBI, 实时系统]
+# 来源：https://hcn1wljjwdm5.feishu.cn/wiki/EPZgw2yROiAqHOkzyGAcWTDjnig（由 scripts/sync-feishu.mjs 从飞书同步，勿手改，改飞书原文后重跑）
 ---
 
-<title>RISC-V软件分域AMP系统技术方案</title>
-
-
+## 项目动机
 
 纯 SMP 架构下的 Linux 难以满足硬实时需求,而引入物理 AMP 虽可弥补,却带来额外的硬件成本、功耗开销与系统复杂度;为此,本项目探索在不增加硬件的前提下,基于软件分域将同构多核构造为 AMP 系统的可行路径。
 
