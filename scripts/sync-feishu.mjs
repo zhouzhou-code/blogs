@@ -12,7 +12,7 @@
 // 依赖 lark-cli（已登录 user 身份）。
 
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, statSync, readdirSync, unlinkSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -147,6 +147,11 @@ async function syncOne(post) {
     return;
   }
   mkdirSync(dir, { recursive: true });
+
+  // 清理旧的同步图片：飞书删/换图后，磁盘上的旧图也要跟着删，避免孤儿文件累积
+  for (const f of readdirSync(dir)) {
+    if (/^img-\d+\.(png|jpe?g|gif|webp|svg)$/i.test(f)) unlinkSync(join(dir, f));
+  }
 
   // 图片：<img ... url=".."/> 和 ![](http..) → 用 curl 下载到本地、改相对路径
   let imgN = 0;
