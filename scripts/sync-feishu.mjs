@@ -118,10 +118,20 @@ async function syncOne(post) {
   let md = res?.data?.document?.content;
   if (!md) throw new Error('拿不到文档内容');
 
-  // 标题：首个 # 行 → frontmatter，从正文移除
-  const titleMatch = md.match(/^#\s+(.+)$/m);
-  const title = post.title || (titleMatch ? titleMatch[1].trim() : slug);
-  if (titleMatch) md = md.replace(titleMatch[0], '').replace(/^\s+/, '');
+  // 标题优先级：manifest.title > 飞书文档标题 <title>..</title> > 首个 # 标题 > slug
+  let title = post.title;
+  const tagMatch = md.match(/<title>([\s\S]*?)<\/title>/);
+  if (tagMatch && !title) title = tagMatch[1].trim();
+  if (!title) {
+    const h1 = md.match(/^#\s+(.+)$/m);
+    if (h1) {
+      title = h1[1].trim();
+      md = md.replace(h1[0], ''); // 没有 <title> 时，首个 # 就是标题，从正文移除
+    }
+  }
+  if (!title) title = slug;
+  // 清理正文里残留的 <title> 标签（飞书文档标题不属于正文），再去开头空白
+  md = md.replace(/<title>[\s\S]*?<\/title>/g, '').replace(/^\s+/, '');
 
   // 展开内嵌表格 <sheet sheet-id=".." token="..">
   const sheetRe = /<sheet[^>]*\bsheet-id="([^"]+)"[^>]*\btoken="([^"]+)"[^>]*>\s*<\/sheet>|<sheet[^>]*\btoken="([^"]+)"[^>]*\bsheet-id="([^"]+)"[^>]*>\s*<\/sheet>/g;
