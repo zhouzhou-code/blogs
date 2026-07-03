@@ -156,7 +156,21 @@ h1, h2, h3, h4 { scroll-margin-top: 1.5rem; }
 .prose p, .prose li { line-height: 1.75; }
 .prose ul, .prose ol { padding-left: 1.5rem; }
 .prose li { margin: 0.28rem 0; }
-.prose img { display: block; max-width: 100%; height: auto; margin: 1.4rem auto; border: 1px solid var(--border); border-radius: 4px; }
+.prose img { display: block; max-width: 100%; height: auto; margin: 1.4rem auto; border: 1px solid var(--border); border-radius: 4px; cursor: zoom-in; }
+
+/* 图片点击放大灯箱 */
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: zoom-out;
+  padding: 2rem;
+}
+.lightbox img { max-width: 96%; max-height: 96%; border-radius: 4px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 .prose hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 
 /* 行内代码 & 代码块（RTD 风：行内偏红） */

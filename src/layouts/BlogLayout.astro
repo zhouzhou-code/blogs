@@ -111,6 +111,19 @@ const here = strip(Astro.url.pathname);
       const close = () => document.body.classList.remove('side-open');
       t && t.addEventListener('click', () => document.body.classList.toggle('side-open'));
       o && o.addEventListener('click', close);
+
+      // 正文图片点击放大（灯箱），密集画板/流程图可看全分辨率
+      document.querySelectorAll('.prose img').forEach((img) => {
+        img.addEventListener('click', () => {
+          const box = document.createElement('div');
+          box.className = 'lightbox';
+          const big = document.createElement('img');
+          big.src = img.currentSrc || img.src;
+          box.appendChild(big);
+          box.addEventListener('click', () => box.remove());
+          document.body.appendChild(box);
+        });
+      });
     </script>
 
     {
