@@ -7,6 +7,7 @@ import sitemap from '@astrojs/sitemap';
 import remarkMath from 'remark-math';
 import rehypeKatex from 'rehype-katex';
 import remarkCjkFriendly from 'remark-cjk-friendly';
+import remarkDiagramFences from './src/plugins/remark-diagram-fences.mjs';
 
 import cloudflare from '@astrojs/cloudflare';
 
@@ -46,11 +47,13 @@ export default defineConfig({
 
   // 全站 Markdown 管线：数学公式（KaTeX）对博客区和文档区同时生效
   markdown: {
-    remarkPlugins: [remarkMath, remarkCjkFriendly],
+    remarkPlugins: [remarkDiagramFences, remarkMath, remarkCjkFriendly],
     rehypePlugins: [rehypeKatex],
   },
 
   // imageService: 'compile' —— 构建时用 sharp 优化成静态文件，
   // 不依赖 Cloudflare 运行时图片服务（/_image 在本部署会 404）
-  adapter: cloudflare({ imageService: 'compile' }),
+  // Cloudflare 适配器只在生产构建启用；本地 dev 用普通 Node，
+  // 否则 astro dev 会跑进 workerd 运行时，出现 `process is not defined`。
+  ...(process.env.NODE_ENV === 'production' ? { adapter: cloudflare({ imageService: 'compile' }) } : {}),
 });

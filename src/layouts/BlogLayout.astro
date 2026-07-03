@@ -2,6 +2,7 @@
 import 'katex/dist/katex.min.css';
 import '../styles/global.css';
 import { getCollection } from 'astro:content';
+import FenceRenderer from '../components/FenceRenderer.astro';
 
 interface Heading {
   depth: number;
@@ -99,6 +100,8 @@ const here = strip(Astro.url.pathname);
     </section>
 
     <div class="side-overlay" id="side-overlay"></div>
+
+    <FenceRenderer />
 
     <script is:inline>
       // 移动端侧栏开合

@@ -1,0 +1,224 @@
+---
+// 客户端代码块渲染器：把 <div class="fence-render"> 变成活图。
+// 只在页面确实包含这些 div 时才动态加载对应的库，不拖累其它页面。
+---
+
+<script>
+  const nodes = Array.from(document.querySelectorAll('.fence-render'));
+  if (nodes.length) {
+    const decode = (b64) =>
+      new TextDecoder().decode(Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)));
+    const parseObj = (src) => {
+      try {
+        return JSON.parse(src);
+      } catch {
+        // 允许 WaveDrom 那种非严格 JSON（键不带引号）。内容为站点作者本人所写，可信。
+        return new Function('return (' + src + ')')();
+      }
+    };
+
+    // ── mermaid ──
+    async function renderMermaid(el, src) {
+      const mermaid = (await import('mermaid')).default;
+      mermaid.initialize({ startOnLoad: false, securityLevel: 'loose' });
+      const id = 'mmd-' + Math.random().toString(36).slice(2);
+      const { svg } = await mermaid.render(id, src.trim());
+      el.innerHTML = svg;
+    }
+
+    // ── wavedrom（总线时序 / 寄存器位域）──
+    async function renderWavedrom(el, src) {
+      const wd = await import('wavedrom');
+      const idx = Math.floor(Math.random() * 1e6);
+      const rendered = wd.renderAny(idx, parseObj(src), wd.waveSkin);
+      el.innerHTML = wd.onml.stringify(rendered);
+    }
+
+    // ── reg：交互式寄存器位域（点某一位翻转，实时算值）──
+    function renderReg(el, src) {
+      const spec = parseObj(src);
+      const width = spec.width || 32;
+      let bits = new Array(width).fill(0);
+      // 初始值
+      if (spec.value != null) {
+        const v = BigInt(spec.value);
+        for (let i = 0; i < width; i++) bits[i] = Number((v >> BigInt(i)) & 1n);
+      }
+      // 字段 → 每一位的所属与配色
+      const palette = ['#2980b9', '#27ae60', '#c0392b', '#8e44ad', '#d35400', '#16a085', '#7f8c8d'];
+      const owner = new Array(width).fill(null);
+      (spec.fields || []).forEach((f, fi) => {
+        const m = String(f.bits).match(/^(\d+)(?::(\d+))?$/);
+        if (!m) return;
+        const hi = +m[1];
+        const lo = m[2] != null ? +m[2] : hi;
+        for (let b = Math.min(hi, lo); b <= Math.max(hi, lo); b++)
+          owner[b] = { name: f.name, color: palette[fi % palette.length] };
+      });
+
+      const wrap = document.createElement('div');
+      wrap.className = 'reg-widget';
+      if (spec.name) {
+        const h = document.createElement('div');
+        h.className = 'reg-name';
+        h.textContent = spec.name;
+        wrap.appendChild(h);
+      }
+      const grid = document.createElement('div');
+      grid.className = 'reg-grid';
+      const readout = document.createElement('div');
+      readout.className = 'reg-readout';
+
+      const update = () => {
+        let val = 0n;
+        for (let i = 0; i < width; i++) if (bits[i]) val |= 1n << BigInt(i);
+        const hex = '0x' + val.toString(16).toUpperCase().padStart(Math.ceil(width / 4), '0');
+        readout.textContent = `值 = ${hex}   (${val.toString(10)})`;
+      };
+
+      for (let b = width - 1; b >= 0; b--) {
+        const cell = document.createElement('button');
+        cell.className = 'reg-bit';
+        cell.type = 'button';
+        cell.dataset.b = String(b);
+        const o = owner[b];
+        if (o) cell.style.borderColor = o.color;
+        cell.title = (o ? o.name + ' · ' : '') + 'bit ' + b;
+        const idxLabel = document.createElement('span');
+        idxLabel.className = 'reg-idx';
+        idxLabel.textContent = String(b);
+        const v = document.createElement('span');
+        v.className = 'reg-val';
+        cell.appendChild(idxLabel);
+        cell.appendChild(v);
+        const paint = () => {
+          v.textContent = bits[b];
+          cell.classList.toggle('on', !!bits[b]);
+          if (o && bits[b]) cell.style.background = o.color;
+          else cell.style.background = '';
+        };
+        paint();
+        cell.addEventListener('click', () => {
+          bits[b] ^= 1;
+          paint();
+          update();
+        });
+        grid.appendChild(cell);
+      }
+
+      // 字段图例
+      const legend = document.createElement('div');
+      legend.className = 'reg-legend';
+      (spec.fields || []).forEach((f, fi) => {
+        const chip = document.createElement('span');
+        chip.className = 'reg-chip';
+        chip.style.borderColor = palette[fi % palette.length];
+        chip.textContent = `${f.bits} ${f.name}`;
+        legend.appendChild(chip);
+      });
+
+      wrap.appendChild(grid);
+      if (spec.fields?.length) wrap.appendChild(legend);
+      wrap.appendChild(readout);
+      update();
+      el.innerHTML = '';
+      el.appendChild(wrap);
+    }
+
+    for (const el of nodes) {
+      const type = el.dataset.render;
+      const src = decode(el.dataset.src || '');
+      const handler = { mermaid: renderMermaid, wavedrom: renderWavedrom, reg: renderReg }[type];
+      if (!handler) continue;
+      Promise.resolve()
+        .then(() => handler(el, src))
+        .catch((e) => {
+          el.innerHTML =
+            '<pre style="color:#c0392b">' + type + ' 渲染失败：' + String(e) + '</pre>';
+        });
+    }
+  }
+</script>
+
+<style is:global>
+  .fence-render {
+    margin: 1.5rem 0;
+    text-align: center;
+    overflow-x: auto;
+  }
+  .fence-render svg {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* 交互式寄存器位域 */
+  .reg-widget {
+    display: inline-block;
+    text-align: left;
+    max-width: 100%;
+  }
+  .reg-name {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    color: var(--heading, #333);
+  }
+  .reg-grid {
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 2px;
+    overflow-x: auto;
+    padding-bottom: 0.4rem;
+  }
+  .reg-bit {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 42px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 2px solid var(--border, #ccc);
+    border-radius: 4px;
+    background: #fff;
+    cursor: pointer;
+    font-family: var(--font-mono, monospace);
+    transition: background 0.12s;
+  }
+  .reg-bit .reg-idx {
+    font-size: 0.6rem;
+    color: var(--muted, #888);
+    line-height: 1;
+  }
+  .reg-bit .reg-val {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--fg, #333);
+    line-height: 1.4;
+  }
+  .reg-bit.on .reg-val {
+    color: #fff;
+  }
+  .reg-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.7rem 0 0.4rem;
+  }
+  .reg-chip {
+    font-size: 0.72rem;
+    font-family: var(--font-mono, monospace);
+    padding: 0.1rem 0.45rem;
+    border: 1px solid #ccc;
+    border-left-width: 4px;
+    border-radius: 3px;
+    background: #fff;
+  }
+  .reg-readout {
+    margin-top: 0.5rem;
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    color: var(--link, #2980b9);
+  }
+</style>
