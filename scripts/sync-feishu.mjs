@@ -203,9 +203,14 @@ async function syncOne(post) {
       const nodes = q?.data?.nodes;
       if (!nodes || !nodes.length) throw new Error('无节点数据');
       const svg = whiteboardToSVG(nodes);
-      writeFileSync(join(dir, `${base}.svg`), svg);
-      console.log(`  · 渲染画板 ${base}.svg（矢量，${nodes.length} 节点）`);
-      return `./${base}.svg`;
+      // 用矢量引擎出图，但栅格化成超高清 PNG（浏览器 SVG-as-img 渲染不稳，PNG 到处一致）
+      await sharp(Buffer.from(svg), { density: 260 })
+        .resize({ width: 3000, withoutEnlargement: true })
+        .flatten({ background: '#ffffff' })
+        .png()
+        .toFile(join(dir, `${base}.png`));
+      console.log(`  · 渲染画板 ${base}.png（矢量引擎出图 → 高清 PNG，${nodes.length} 节点）`);
+      return `./${base}.png`;
     } catch (e) {
       console.warn(`  ! 画板 ${token} 矢量渲染失败（${e.message}），退回位图快照`);
       try {
