@@ -76,6 +76,36 @@ export function whiteboardToSVG(nodes) {
     return null;
   };
 
+  // 端点的「离开方向」（垂直于所贴的边）
+  const SNAP = { top: [0, -1], bottom: [0, 1], left: [-1, 0], right: [1, 0] };
+  const dirOf = (ep, self, other) => {
+    const s = ep?.attached_object?.snap_to;
+    if (s && SNAP[s]) return SNAP[s];
+    // 无贴边信息：按到对端的主轴方向推断
+    const dx = other.x - self.x, dy = other.y - self.y;
+    return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy) || 1];
+  };
+  // 从 s（沿 ds 离开）到 e（沿 de 离开）的正交折线，全程直角
+  const routeOrtho = (s, e, ds, de) => {
+    const k = 22;
+    const s1 = { x: s.x + ds[0] * k, y: s.y + ds[1] * k };
+    const e1 = { x: e.x + de[0] * k, y: e.y + de[1] * k };
+    const sH = ds[0] !== 0, eH = de[0] !== 0;
+    const mid = [];
+    if (sH && eH) {
+      const mx = (s1.x + e1.x) / 2;
+      mid.push({ x: mx, y: s1.y }, { x: mx, y: e1.y });
+    } else if (!sH && !eH) {
+      const my = (s1.y + e1.y) / 2;
+      mid.push({ x: s1.x, y: my }, { x: e1.x, y: my });
+    } else if (sH && !eH) {
+      mid.push({ x: e1.x, y: s1.y });
+    } else {
+      mid.push({ x: s1.x, y: e1.y });
+    }
+    return [s, s1, ...mid, e1, e];
+  };
+
   const rects = [], texts = [], conns = [], pts = [];
   for (const n of nodes) {
     if (n.composite_shape?.type === 'rect') {
@@ -87,10 +117,11 @@ export function whiteboardToSVG(nodes) {
     } else if (n.connector) {
       const s = endpoint(n.connector.start), e = endpoint(n.connector.end);
       if (s && e) {
-        // 拐点坐标是相对「起点」的偏移，转成绝对坐标
-        const mids = (n.connector.turning_points || []).map((p) => ({ x: s.x + p.x, y: s.y + p.y }));
-        conns.push({ n, pts: [s, ...mids, e] });
-        [s, e, ...mids].forEach((p) => pts.push([p.x, p.y]));
+        const ds = dirOf(n.connector.start, s, e);
+        const de = dirOf(n.connector.end, e, s);
+        const path = routeOrtho(s, e, ds, de);
+        conns.push({ n, pts: path });
+        path.forEach((p) => pts.push([p.x, p.y]));
       }
     }
   }
