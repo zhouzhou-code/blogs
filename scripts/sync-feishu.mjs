@@ -16,6 +16,7 @@ import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, statSyn
 import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import sharp from 'sharp';
+import { whiteboardToSVG } from './whiteboard-svg.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const MANIFEST = join(ROOT, 'scripts', 'feishu-posts.json');
@@ -186,27 +187,33 @@ async function syncOne(post) {
   md = md.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (_, alt, u) => `![${alt}](${dlImage(u)})`);
 
   // 画板 <whiteboard token=".."> → 导出为图片快照，替换为图片引用
+  // 画板导出：优先拉原始节点渲染成 SVG 矢量图；失败则退回位图快照
+  const rasterWhiteboard = async (token, base) => {
+    const rawRel = relative(ROOT, join(dir, `${base}-raw`));
+    const r = lark(['docs', '+media-download', '--type', 'whiteboard', '--token', token, '--output', rawRel, '--overwrite']);
+    const raw = r?.data?.saved_path || join(dir, `${base}-raw.jpg`);
+    await sharp(raw).trim({ threshold: 10 }).png().toFile(join(dir, `${base}.png`));
+    unlinkSync(raw);
+    return `./${base}.png`;
+  };
   const dlWhiteboard = async (token, idx) => {
     const base = `wb-${String(idx + 1).padStart(2, '0')}`;
-    const rawRel = relative(ROOT, join(dir, `${base}-raw`)); // lark-cli 只接受 cwd 下的相对路径
     try {
-      const r = lark([
-        'docs', '+media-download',
-        '--type', 'whiteboard',
-        '--token', token,
-        '--output', rawRel,
-        '--overwrite',
-      ]);
-      const raw = r?.data?.saved_path || join(dir, `${base}-raw.jpg`);
-      // 裁掉飞书方形画布的白边、转无损 PNG（避免再叠一层有损压缩）
-      const outPng = join(dir, `${base}.png`);
-      await sharp(raw).trim({ threshold: 10 }).png().toFile(outPng);
-      unlinkSync(raw);
-      console.log(`  · 导出画板 ${base}.png（已裁白边）`);
-      return `./${base}.png`;
+      const q = lark(['whiteboard', '+query', '--whiteboard-token', token, '--output_as', 'raw']);
+      const nodes = q?.data?.nodes;
+      if (!nodes || !nodes.length) throw new Error('无节点数据');
+      const svg = whiteboardToSVG(nodes);
+      writeFileSync(join(dir, `${base}.svg`), svg);
+      console.log(`  · 渲染画板 ${base}.svg（矢量，${nodes.length} 节点）`);
+      return `./${base}.svg`;
     } catch (e) {
-      console.warn(`  ! 画板 ${token} 导出失败：${e.message}`);
-      return '';
+      console.warn(`  ! 画板 ${token} 矢量渲染失败（${e.message}），退回位图快照`);
+      try {
+        return await rasterWhiteboard(token, base);
+      } catch (e2) {
+        console.warn(`  ! 画板 ${token} 位图也失败：${e2.message}`);
+        return '';
+      }
     }
   };
   const wbTokens = [...md.matchAll(/<whiteboard[^>]*\btoken="([^"]+)"[^>]*>\s*<\/whiteboard>/g)].map(

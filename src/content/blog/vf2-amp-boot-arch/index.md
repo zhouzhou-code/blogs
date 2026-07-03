@@ -17,7 +17,7 @@ tags: [RISC-V, AMP, VisionFive2, 启动流程]
 
 ### 实际启动流程
 
-![](./wb-01.png)
+![](./wb-01.svg)
 
 ## boot地址分配
 
@@ -61,7 +61,7 @@ mtd2 分区名叫 uboot，但装的不是 U-Boot——是 fw_payload.img = OpenS
 
 ## 系统架构
 
-![](./wb-02.png)
+![](./wb-02.svg)
 
 
 
