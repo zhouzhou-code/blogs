@@ -13,7 +13,7 @@
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdirSync, existsSync, renameSync, statSync, readdirSync, unlinkSync } from 'node:fs';
-import { join, dirname } from 'node:path';
+import { join, dirname, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
@@ -53,6 +53,16 @@ function curlDownload(url, dest) {
   });
   if (!existsSync(dest) || statSync(dest).size === 0) throw new Error('空文件');
   return ct;
+}
+
+// 解码常见 HTML 实体（飞书标题会把 & 转成 &amp;）
+function decodeEntities(s = '') {
+  return s
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
 
 function extFromCT(ct = '') {
@@ -120,6 +130,7 @@ async function syncOne(post) {
     }
   }
   if (!title) title = slug;
+  title = decodeEntities(title);
   // 清理正文里残留的 <title> 标签（飞书文档标题不属于正文），再去开头空白
   md = md.replace(/<title>[\s\S]*?<\/title>/g, '').replace(/^\s+/, '');
 
@@ -148,9 +159,9 @@ async function syncOne(post) {
   }
   mkdirSync(dir, { recursive: true });
 
-  // 清理旧的同步图片：飞书删/换图后，磁盘上的旧图也要跟着删，避免孤儿文件累积
+  // 清理旧的同步图片/画板：飞书删/换后，磁盘上的旧文件也要跟着删，避免孤儿累积
   for (const f of readdirSync(dir)) {
-    if (/^img-\d+\.(png|jpe?g|gif|webp|svg)$/i.test(f)) unlinkSync(join(dir, f));
+    if (/^(img|wb)-\d+\.(png|jpe?g|gif|webp|svg)$/i.test(f)) unlinkSync(join(dir, f));
   }
 
   // 图片：<img ... url=".."/> 和 ![](http..) → 用 curl 下载到本地、改相对路径
@@ -172,6 +183,33 @@ async function syncOne(post) {
   };
   md = md.replace(/<img[^>]*\burl="([^"]+)"[^>]*\/?>/g, (_, u) => `![](${dlImage(u)})`);
   md = md.replace(/!\[([^\]]*)\]\((https?:\/\/[^)]+)\)/g, (_, alt, u) => `![${alt}](${dlImage(u)})`);
+
+  // 画板 <whiteboard token=".."> → 导出为图片快照，替换为图片引用
+  let wbN = 0;
+  const dlWhiteboard = (token) => {
+    wbN += 1;
+    const base = `wb-${String(wbN).padStart(2, '0')}`;
+    const outRel = relative(ROOT, join(dir, base)); // lark-cli 只接受 cwd 下的相对路径
+    try {
+      const r = lark([
+        'docs', '+media-download',
+        '--type', 'whiteboard',
+        '--token', token,
+        '--output', outRel,
+        '--overwrite',
+      ]);
+      const fname = (r?.data?.saved_path || `${base}.jpg`).split('/').pop();
+      console.log(`  · 导出画板 ${fname}`);
+      return `./${fname}`;
+    } catch (e) {
+      console.warn(`  ! 画板 ${token} 导出失败：${e.message}`);
+      return '';
+    }
+  };
+  md = md.replace(/<whiteboard[^>]*\btoken="([^"]+)"[^>]*>\s*<\/whiteboard>/g, (_, tk) => {
+    const rel = dlWhiteboard(tk);
+    return rel ? `![](${rel})` : '';
+  });
 
   md = normalizeHeadings(md);
   // 清理飞书标题里多余的 **加粗**（标题本身已是强调）

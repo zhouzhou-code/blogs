@@ -5,5 +5,12 @@
     "date": "2026-07-02",
     "tags": ["RISC-V", "AMP", "OpenSBI", "实时系统"],
     "draft": false
+  },
+  {
+    "url": "https://hcn1wljjwdm5.feishu.cn/wiki/IkTNwgHqBimWxtkXvDgcmtAZntd",
+    "slug": "vf2-amp-boot-arch",
+    "date": "2026-07-03",
+    "tags": ["RISC-V", "AMP", "VisionFive2", "启动流程"],
+    "draft": false
   }
 ]
