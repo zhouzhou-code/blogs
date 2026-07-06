@@ -196,25 +196,17 @@ async function syncOne(post) {
     unlinkSync(raw);
     return `./${base}.png`;
   };
-  // 返回「直接放进正文的替换文本」：成功=内联 SVG（真矢量、可无限缩放），失败=位图快照图片
+  // 飞书不提供画板矢量导出（连 docx→PDF 也把画板栅格化成 2560px JPEG）。
+  // 为「完全还原飞书」，直接用飞书自己渲染的原图（裁白边、点击可放大）。
   const dlWhiteboard = async (token, idx) => {
     const base = `wb-${String(idx + 1).padStart(2, '0')}`;
     try {
-      const q = lark(['whiteboard', '+query', '--whiteboard-token', token, '--output_as', 'raw']);
-      const nodes = q?.data?.nodes;
-      if (!nodes || !nodes.length) throw new Error('无节点数据');
-      const svg = whiteboardToSVG(nodes);
-      console.log(`  · 渲染画板 ${base}（内联 SVG 矢量，${nodes.length} 节点）`);
-      return `\n\n<figure class="whiteboard">${svg}</figure>\n\n`;
+      const rel = await rasterWhiteboard(token, base);
+      console.log(`  · 画板 ${base}.png（飞书原图，裁白边）`);
+      return `\n\n![](${rel})\n\n`;
     } catch (e) {
-      console.warn(`  ! 画板 ${token} 矢量渲染失败（${e.message}），退回位图快照`);
-      try {
-        const rel = await rasterWhiteboard(token, base);
-        return `\n\n![](${rel})\n\n`;
-      } catch (e2) {
-        console.warn(`  ! 画板 ${token} 位图也失败：${e2.message}`);
-        return '';
-      }
+      console.warn(`  ! 画板 ${token} 导出失败：${e.message}`);
+      return '';
     }
   };
   const wbTokens = [...md.matchAll(/<whiteboard[^>]*\btoken="([^"]+)"[^>]*>\s*<\/whiteboard>/g)].map(
