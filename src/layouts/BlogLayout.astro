@@ -124,6 +124,17 @@ const here = strip(Astro.url.pathname);
           document.body.appendChild(box);
         });
       });
+
+      // 内联画板（SVG 矢量）点击放大
+      document.querySelectorAll('.prose figure.whiteboard').forEach((fig) => {
+        fig.addEventListener('click', () => {
+          const box = document.createElement('div');
+          box.className = 'lightbox';
+          box.innerHTML = fig.innerHTML;
+          box.addEventListener('click', () => box.remove());
+          document.body.appendChild(box);
+        });
+      });
     </script>
 
     {

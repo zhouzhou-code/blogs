@@ -196,6 +196,7 @@ async function syncOne(post) {
     unlinkSync(raw);
     return `./${base}.png`;
   };
+  // 返回「直接放进正文的替换文本」：成功=内联 SVG（真矢量、可无限缩放），失败=位图快照图片
   const dlWhiteboard = async (token, idx) => {
     const base = `wb-${String(idx + 1).padStart(2, '0')}`;
     try {
@@ -203,18 +204,13 @@ async function syncOne(post) {
       const nodes = q?.data?.nodes;
       if (!nodes || !nodes.length) throw new Error('无节点数据');
       const svg = whiteboardToSVG(nodes);
-      // 用矢量引擎出图，但栅格化成超高清 PNG（浏览器 SVG-as-img 渲染不稳，PNG 到处一致）
-      await sharp(Buffer.from(svg), { density: 260 })
-        .resize({ width: 3000, withoutEnlargement: true })
-        .flatten({ background: '#ffffff' })
-        .png()
-        .toFile(join(dir, `${base}.png`));
-      console.log(`  · 渲染画板 ${base}.png（矢量引擎出图 → 高清 PNG，${nodes.length} 节点）`);
-      return `./${base}.png`;
+      console.log(`  · 渲染画板 ${base}（内联 SVG 矢量，${nodes.length} 节点）`);
+      return `\n\n<figure class="whiteboard">${svg}</figure>\n\n`;
     } catch (e) {
       console.warn(`  ! 画板 ${token} 矢量渲染失败（${e.message}），退回位图快照`);
       try {
-        return await rasterWhiteboard(token, base);
+        const rel = await rasterWhiteboard(token, base);
+        return `\n\n![](${rel})\n\n`;
       } catch (e2) {
         console.warn(`  ! 画板 ${token} 位图也失败：${e2.message}`);
         return '';
@@ -224,13 +220,10 @@ async function syncOne(post) {
   const wbTokens = [...md.matchAll(/<whiteboard[^>]*\btoken="([^"]+)"[^>]*>\s*<\/whiteboard>/g)].map(
     (m) => m[1]
   );
-  const wbRels = [];
-  for (let i = 0; i < wbTokens.length; i++) wbRels.push(await dlWhiteboard(wbTokens[i], i));
+  const wbRepl = [];
+  for (let i = 0; i < wbTokens.length; i++) wbRepl.push(await dlWhiteboard(wbTokens[i], i));
   let wi = 0;
-  md = md.replace(/<whiteboard[^>]*\btoken="[^"]+"[^>]*>\s*<\/whiteboard>/g, () => {
-    const rel = wbRels[wi++];
-    return rel ? `![](${rel})` : '';
-  });
+  md = md.replace(/<whiteboard[^>]*\btoken="[^"]+"[^>]*>\s*<\/whiteboard>/g, () => wbRepl[wi++] || '');
 
   md = normalizeHeadings(md);
   // 清理飞书标题里多余的 **加粗**（标题本身已是强调）

@@ -158,6 +158,18 @@ h1, h2, h3, h4 { scroll-margin-top: 1.5rem; }
 .prose li { margin: 0.28rem 0; }
 .prose img { display: block; max-width: 100%; height: auto; margin: 1.4rem auto; border: 1px solid var(--border); border-radius: 4px; cursor: zoom-in; }
 
+/* 内联画板（真矢量 SVG） */
+.prose figure.whiteboard {
+  margin: 1.5rem 0;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.5rem;
+  background: #fff;
+  overflow-x: auto;
+  cursor: zoom-in;
+}
+.prose figure.whiteboard svg { display: block; width: 100%; height: auto; }
+
 /* 图片点击放大灯箱 */
 .lightbox {
   position: fixed;
@@ -170,7 +182,7 @@ h1, h2, h3, h4 { scroll-margin-top: 1.5rem; }
   cursor: zoom-out;
   padding: 2rem;
 }
-.lightbox img { max-width: 96%; max-height: 96%; border-radius: 4px; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
+.lightbox img, .lightbox svg { max-width: 96%; max-height: 96%; border-radius: 4px; background: #fff; box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5); }
 .prose hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
 
 /* 行内代码 & 代码块（RTD 风：行内偏红） */
