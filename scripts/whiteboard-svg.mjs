@@ -85,25 +85,37 @@ export function whiteboardToSVG(nodes) {
     const dx = other.x - self.x, dy = other.y - self.y;
     return Math.abs(dx) >= Math.abs(dy) ? [Math.sign(dx) || 1, 0] : [0, Math.sign(dy) || 1];
   };
-  // 从 s（沿 ds 离开）到 e（沿 de 离开）的正交折线，全程直角
-  const routeOrtho = (s, e, ds, de) => {
-    const k = 22;
-    const s1 = { x: s.x + ds[0] * k, y: s.y + ds[1] * k };
-    const e1 = { x: e.x + de[0] * k, y: e.y + de[1] * k };
-    const sH = ds[0] !== 0, eH = de[0] !== 0;
-    const mid = [];
-    if (sH && eH) {
-      const mx = (s1.x + e1.x) / 2;
-      mid.push({ x: mx, y: s1.y }, { x: mx, y: e1.y });
-    } else if (!sH && !eH) {
-      const my = (s1.y + e1.y) / 2;
-      mid.push({ x: s1.x, y: my }, { x: e1.x, y: my });
-    } else if (sH && !eH) {
-      mid.push({ x: e1.x, y: s1.y });
-    } else {
-      mid.push({ x: s1.x, y: e1.y });
+  // 把一串点正交化（相邻两点不共轴时按当前方向插一个直角拐点）
+  const orthoThrough = (arr, startDir) => {
+    const out = [arr[0]];
+    let dir = startDir;
+    for (let i = 1; i < arr.length; i++) {
+      const a = out[out.length - 1], b = arr[i];
+      if (Math.abs(a.x - b.x) < 0.5 || Math.abs(a.y - b.y) < 0.5) {
+        out.push(b);
+      } else {
+        out.push(dir[0] !== 0 ? { x: b.x, y: a.y } : { x: a.x, y: b.y }, b);
+      }
+      const p = out[out.length - 2], q = out[out.length - 1];
+      dir = Math.abs(q.x - p.x) > Math.abs(q.y - p.y) ? [Math.sign(q.x - p.x) || 1, 0] : [0, Math.sign(q.y - p.y) || 1];
     }
-    return [s, s1, ...mid, e1, e];
+    return out;
+  };
+  // 忠实还原飞书连线：按 shape + 拐点（相对起点）+ 直/曲线
+  const connectorGeom = (cn, s, e, ds, de) => {
+    const f = (p) => `${p.x.toFixed(1)},${p.y.toFixed(1)}`;
+    if (cn.shape === 'curve') {
+      const dist = Math.max(40, Math.hypot(e.x - s.x, e.y - s.y) * 0.4);
+      const c1 = { x: s.x + ds[0] * dist, y: s.y + ds[1] * dist };
+      const c2 = { x: e.x + de[0] * dist, y: e.y + de[1] * dist };
+      return { d: `M${f(s)} C${f(c1)} ${f(c2)} ${f(e)}`, pts: [s, c1, c2, e] };
+    }
+    if (cn.shape === 'straight' || !cn.turning_points?.length) {
+      return { d: `M${f(s)} L${f(e)}`, pts: [s, e] };
+    }
+    const tps = cn.turning_points.map((p) => ({ x: s.x + p.x, y: s.y + p.y }));
+    const poly = orthoThrough([s, ...tps, e], ds);
+    return { d: poly.map((p, i) => `${i ? 'L' : 'M'}${f(p)}`).join(' '), pts: poly };
   };
 
   const rects = [], texts = [], conns = [], pts = [];
@@ -115,13 +127,14 @@ export function whiteboardToSVG(nodes) {
       texts.push(n);
       pts.push([n.x, n.y], [n.x + n.width, n.y + (n.height || 20)]);
     } else if (n.connector) {
-      const s = endpoint(n.connector.start), e = endpoint(n.connector.end);
+      const cn = n.connector;
+      const s = endpoint(cn.start), e = endpoint(cn.end);
       if (s && e) {
-        const ds = dirOf(n.connector.start, s, e);
-        const de = dirOf(n.connector.end, e, s);
-        const path = routeOrtho(s, e, ds, de);
-        conns.push({ n, pts: path });
-        path.forEach((p) => pts.push([p.x, p.y]));
+        const ds = dirOf(cn.start, s, e);
+        const de = dirOf(cn.end, e, s);
+        const geom = connectorGeom(cn, s, e, ds, de);
+        conns.push({ n, d: geom.d, pts: geom.pts });
+        geom.pts.forEach((p) => pts.push([p.x, p.y]));
       }
     }
   }
@@ -141,15 +154,15 @@ export function whiteboardToSVG(nodes) {
     body += `<rect x="${n.x.toFixed(1)}" y="${n.y.toFixed(1)}" width="${n.width.toFixed(1)}" height="${n.height.toFixed(1)}" rx="4" fill="${fill}" fill-opacity="${(s.fill_opacity ?? 100) / 100}" stroke="${stroke}" stroke-width="${sw}"${d ? ` stroke-dasharray="${d}"` : ''}/>\n`;
     body += renderText({ x: n.x, y: n.y, w: n.width, h: n.height }, n.text, true);
   }
-  // 连线 + 箭头 + 标注
+  // 连线 + 箭头 + 标注（忠实还原飞书的走线、虚实线、箭头）
   for (const c of conns) {
     const s = c.n.style || {};
     const col = s.border_color || '#555';
     const sw = BW[s.border_width] || 1.4;
-    const pth = c.pts.map((p, i) => `${i ? 'L' : 'M'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+    const d = dash(s.border_style);
     const endArrow = /arrow/.test(c.n.connector.end?.arrow_style || '');
     const startArrow = /arrow/.test(c.n.connector.start?.arrow_style || '');
-    body += `<path d="${pth}" fill="none" stroke="${col}" stroke-width="${sw}"${startArrow ? ' marker-start="url(#a)"' : ''}${endArrow ? ' marker-end="url(#a)"' : ''}/>\n`;
+    body += `<path d="${c.d}" fill="none" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round"${d ? ` stroke-dasharray="${d}"` : ''}${startArrow ? ' marker-start="url(#a)"' : ''}${endArrow ? ' marker-end="url(#a)"' : ''}/>\n`;
     const cap = c.n.connector.captions?.data?.[0];
     if (cap?.text) {
       const m = c.pts[Math.floor(c.pts.length / 2)];
